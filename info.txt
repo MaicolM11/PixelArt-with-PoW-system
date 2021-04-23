@@ -1,0 +1,11 @@
+PROCESO
+-> solicitud pintar a1 rojo
+-> Consenso palabras (si empate repetir) lista de palabras empate
+-> la mas votada la escribe n veces
+-> se registra tarea (quien hace la tarea, cual es la tarea, pixel y color)
+-> las instancias revisan las tareas
+-> Si la mitad mas 1 vota, se registra el pixel con cod concatenacion (aleatorio 0-100) cada participante guarda los numeros
+
+-> Certificado
+descargar imagen de pixeles, con archivo con (pixel cod color) excel
+validan todos los participantes
