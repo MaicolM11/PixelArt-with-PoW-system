@@ -4,132 +4,108 @@ const fs = require('fs');
 const cors = require('cors');
 const path = require('path');
 const multer = require('multer');
-const lineReader = require('line-reader');
-
-// Multer config
-var storage =multer.diskStorage({
-    destination: (req,file,cb)=>{
-        cb(null,path.join(__dirname,'/task'))
-    },
-    filename:(req,file,cb)=>{
-        var ext=file.originalname.split('.')
-        cb(null,`${Date.now()}.${ext[ext.length-1]}`)
-    }
-})
-
-var upload=multer({storage:storage})
-
-//http://172.17.0.1:4000
-const urlLeader = "http://192.168.0.77:4000"
-const FormData = require('form-data');
+const lineReader = require('line-reader-sync');
 
 var app = express()
 app.use(cors())
-var port = process.env.PORT ||3000
-const myUrl = "http://172.17.0.1:"+port
+var port = process.env.PORT || 3000
+const myUrl = "http://172.17.0.1:" + port
 var image = [];
 var homeworks = [];
 var http = require('http').createServer(app);
 
-for(var i=0; i<10; i++) {
+var words = ["hola", "mundo","feliz"];
+
+const urlLeader = "http://172.17.0.1:4000"
+const FormData = require('form-data');
+
+var path_work = './task' + port
+
+// Multer config
+var storage = multer.diskStorage({
+    destination: (req, file, cb) =>  cb(null, path.join(__dirname, '/task')) ,
+    filename: (req, file, cb) => {
+        var ext = file.originalname.split('.')
+        cb(null, `${Date.now()}.${ext[ext.length - 1]}`)
+    }
+})
+
+var upload = multer({ storage: storage })
+
+for (var i = 0; i < 10; i++) {
     image[i] = new Array(10);
-} 
+}
 
 app.use(express.json())
 app.use(express.static('public'))
 
-app.get('/', (req, res) => {
-    
+app.get('/code', (req, res) => {
+    let number = Math.floor(Math.random() * (101));
+    res.send({code:number})
 })
+
 // {cell: {x:2,y:3}, color: "#FCB212"}
-app.post('/editPixel', (req, res) => {
-    let cell = req.body.cell;
-    let color = req.body.color;
+app.post('/editPixel', async (req, res) => {
     req.body.url = myUrl;
-    axios.post(urlLeader+ "/editPixel", req.body).then().catch();
-    res.sendStatus(200)
+    axios.post(urlLeader + "/editPixel", req.body)
+            .then((task)=> {
+                res.sendStatus(200)
+                writeOnFile(task.data);
+            })
+            .catch((error) => res.sendStatus(500));
 })
+
+function writeOnFile(info) {
+    let word = info.word;
+    for (let i = 0; i < info.times; i++) {
+        fs.appendFileSync(path_work, `${word}\n`);
+    }
+    var formData = new FormData()
+    formData.append('url', myUrl)
+    formData.append('task', fs.createReadStream(path_work));
+    axios.post(`${urlLeader}/task`, formData, { headers: formData.getHeaders() })
+        .then(() => fs.unlinkSync(path_work))
+        .catch((error) =>  console.log('no') )
+}
 
 app.get('/vow', (req, res) => {
-    let indexWord = Math.floor(Math.random() * (word.length));
-    res.send(words[indexWord]);
+    let indexWord = Math.floor(Math.random() * (words.length));
+    res.send({word: words[indexWord]});
 })
-
-// {word : word, times: 19000}
-app.post('/assignTask', async (req, res) => {
-    writeOnFile(req.body);
-    res.sendStatus(200);
-})
-
-function writeOnFile(info){
-    let word = info.word;
-    fs.writeFileSync("./prueba.txt","")
-    for (let i = 0; i < info.times; i++) {
-        fs.appendFileSync("./prueba.txt", `${word}\n`);
-    }
-    var formData=new FormData()
-    var p=path.join(__dirname,'/prueba.txt')
-    formData.append('url',myUrl)
-    formData.append('task', fs.createReadStream(p));
-    axios.post(`${urlLeader}/task`, 
-        formData
-        , { headers: formData.getHeaders() }, info)
-    .then(()=>{
-        fs.unlinkSync(p)
-    }).catch((error)=>{console.log('no')})
-    //ENVIAR AL LIDER EL FILE para que el lider se lo envie a todos (menos a mi) para validar que se hizo la tarea
-    //ESE POST ESTA SIN HACER
-}
 
 app.post('/saveTask', (req, res) => {
     homeworks.push(req.body);
     res.sendStatus(200);
 })
 
-app.post('/checkTask',upload.single('task'),(req,res)=>{
-     //req.file.path=> path donde se guada
-     //{word : word, times: 19000}
-     let numberWords = 0;
-     let word = req.body.word
-     lineReader.eachLine(req.file.path, (line) => {
-        if(line == word) numberWords++;
-    });
-    if(numberWords == req.body.times) {
-        res.send("Task Completed")
-    }else{
-        res.send("Incompleted")
+app.post('/checkTask', upload.single('task'), (req, res) => {
+    //req.file.path=> path donde se guada
+    let task = homeworks.reverse().find(x=>x.who == req.body.url)
+    let word = task.word, times = task.times, line, numberWords = 0
+    let lrs = new lineReader(req.file.path)
+    while((line=lrs.readline())!= null) {
+        if(line == word)  numberWords++;
     }
     fs.unlinkSync(req.file.path)
-    
+    res.send({response:numberWords == times})
+})
+
+// {url, cod}
+app.post('/savePixel', (req, res)=>{
+    let task = homeworks.reverse().find(x => req,body.url == x.who)
+    image[task.pixel.x][task.pixel.y] = {cod: req.body.cod, color: task.color }
+    res.sendStatus(200)
+})
+
+app.post('/response', (req, res)=>{
+    // req.body.response = bool
+    // enviar a la vista la respuesta
     res.sendStatus(200);
 })
 
 http.listen(port, async () => {
     console.log('Server listening on port ', port);
-    if (!fs.existsSync(path.join(__dirname,'/task'))) {
-        fs.mkdirSync(path.join(__dirname,'/task'))
+    if (!fs.existsSync(path.join(__dirname, '/task'))) {
+        fs.mkdirSync(path.join(__dirname, '/task'))
     }
-
-    //---
-    fs.writeFileSync('./archivo1.txt', 'línea\nlínea', error => {
-        if (error)
-          console.log(error);
-        else
-          console.log('El archivo fue creado');
-     });
-     let numberWords = 0;
-    lineReader.eachLine('./archivo1.txt', (line) => {
-       if (line == "línea") {
-            numberWords++;
-            console.log("si es igual");
-            console.log("línea");
-            console.log(numberWords);
-        } else {
-            console.log("no es igual");
-            console.log(line);
-        }
-    });
-    console.log("cantidad")
-    console.log(numberWords)
-    //fs.unlinkSync('./archivo1.txt')
 });

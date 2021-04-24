@@ -2,11 +2,14 @@ const express = require('express')
 const axios = require('axios')
 const FormData = require('form-data');
 const path = require('path');
-const urlLeader = "http://172.17.0.1:4000"
+const myUrl = "http://172.17.0.1:4000"
 const urls = ["http://172.17.0.1:4000","http://172.17.0.1:3001","http://172.17.0.1:3002","http://172.17.0.1:3003"];
 const multer = require('multer');
 const cors = require('cors');
 const fs = require('fs');
+const LineReaderSync = require("line-reader-sync")
+
+var TIMES_WRITE = 20;
 
 // Multer config
 var storage =multer.diskStorage({
@@ -36,88 +39,102 @@ for(var i=0; i<10; i++) {
 app.use(express.json())
 app.use(express.static('public'))
 
-app.get('/', (req, res) => {
-    
-})
 // {cell: {x:2,y:3}, color: "#FCB212", url:"http://172.17.0.1:300?"}
-app.post('/editPixel', (req, res) => {
+app.post('/editPixel', async (req, res) => {
+    console.log("[lider] solicitud editar pixel");
     let consensus = false;
-    let valuesMajors;
+    let maxKey;
     while(!consensus){
-        valuesMajors = getMajors(getElectionsEditPixel());
-        consensus = valuesMajors.length == 1 ;
+        let info = await getElectionsEditPixel(req.body.url)
+        let votes = info[0]
+        console.log('VOTES',votes);
+        maxKey = Object.keys(votes).reduce((a, b) => votes[a] > votes[b] ? a : b );
+        consensus = votes[maxKey] > info[1] / 2;    
     }
-    assignTask(valuesMajors.pop(), req.body);
-    res.sendStatus(200);
+    assignTask(maxKey, req.body, res);
 })
 
-function getElectionsEditPixel(){
-    let election = {};
-    urls.filter(url => url != req.body.url).forEach(url => {
-        axios.get(url+"/vow").then(data =>{
-            election[data] = (election[data] || 0) + 1;
-        }).catch();
-    })
-    return election;
-}
-
-function getMajors(election){
-    let maxKey = Object.keys(election).reduce((a, b) => election[a] > election[b] ? a : b );
-    let maxValue = election[maxKey];
-    let values = [];
-    for (const key in election) {
-        if (election[key] == maxValue) values.push(key)
-    }
-    return values;
-}
-
-function assignTask(word, info){
-    let task = {who: info.url, which: `write ${word} 19000 times`, word : word, times: 19000, pixel: info.cell, color : info.color }
+function assignTask(word, info, res){
+    let task = {who: info.url, which: `write ${word} ${TIMES_WRITE} times`, word : word, times: TIMES_WRITE, pixel: info.cell, color : info.color }
+    console.log('Task saved!', task);
     homeworks.push(task);
-    urls.forEach(url => axios.post(url+"/saveTask", task).then().catch());
-    axios.post(info.url+"/assignTask", {word : word, times: 19000});
+    urls.filter(x=> x != myUrl).forEach(url => axios.post(url+"/saveTask", task).then().catch());
+    res.send({word : word, times: TIMES_WRITE})
 }
+
+async function getElectionsEditPixel(url_req){
+    let election = {}, count=0;
+    for (let i = 0; i < urls.length; i++) {
+        try{
+            let info = await axios.get(urls[i]+"/vow")
+            election[info.data.word] = (election[info.data.word] || 0) + 1;
+            count++;
+        } catch(error){ }
+    }
+    return [election, count];
+}
+
+app.post('/checkTask', upload.single('task'), (req, res) => {
+    //req.file.path=> path donde se guada
+    let task = homeworks.reverse().find(x=>x.who == req.body.url)
+    let word = task.word, times = task.times, line, numberWords = 0
+    let lrs = new LineReaderSync(req.file.path)
+    while((line=lrs.readline())!= null) {
+        if(line == word)  numberWords++;
+    }
+    fs.unlinkSync(req.file.path)
+    res.send({response:numberWords == times})
+})
+
 
 app.get('/vow', (req, res) => {
-    let indexWord = Math.floor(Math.random() * (word.length));
-    res.send(words[indexWord]);
+    let indexWord = Math.floor(Math.random() * (words.length));
+    res.send({word:words[indexWord]});
 })
 
-app.post('/task',upload.single('task'),(req,res)=>{
-    //req.file.path=> path donde se guada
-    //req.body.url => server de donde viene
-    var formData= new FormData()
-    formData.append('task', fs.createReadStream(req.file.path));
-    /** 
-    let checkTask = {};
-    urls.map(url=>{
-        axios.post(`${url}/checkTask`, 
-        formData
-        , { headers: formData.getHeaders() }, req.body)
-        .then(data =>{
-            checkTask[data] = (checkTask[data] || 0) + 1;
-        }).catch((error)=>{
-            console.log('no')
-        })
-    })
-    let consensusCheckTask = getMajors(checkTask); // o tiene el valor "Task Completed" o "Incompleted" 
-    AQUI VOUY ANDRESFWd
-    d
-
-    */
-    // fs.unlinkSync(req.file.path) -- esta linea hace lo que johan dijo que hiciera en la line 104
-    //borrar el archivo ubicado en req.file.path
+app.post('/task', upload.single('task'), async (req,res)=>{
+    //req.file.path=> path donde se guada    req.body.url => server de donde viene
+    reviewTask(req);
     res.sendStatus(200)
 })
 
-function reviewCheckTasks(checkTask){
-    let maxKey = Object.keys(checkTask).reduce((a, b) => checkTask[a] > checkTask[b] ? a : b );
-    let maxValue = checkTask[maxKey];
-    let values = [];
-    for (const key in election) {
-        if (election[key] == maxValue) values.push(key)
-    }
+function reviewTask(req) {
+    var formData= new FormData()
+    formData.append('url', req.body.url)
+    formData.append('task', fs.createReadStream(req.file.path));
+    let checkTask = {};
+    urls.filter(x=> req.body.url != x).forEach(url => {
+        axios.post(`${url}/checkTask`, formData, { headers: formData.getHeaders() })
+        .then(data => {
+            checkTask[data.response] = (checkTask[data.response] || 0) + 1;
+            
+        }).catch((error)=>  console.log('no'))
+    })
+    console.log("CHECK",checkTask);
+    //pixelRegister(checkTask, req.body.url)
 }
+
+function pixelRegister(result, url){
+    let maxKey = Object.keys(result).reduce((a, b) => result[a] > result[b] ? a : b ); 
+    if(maxKey) {
+        let cod = [];
+        urls.forEach(x=> {
+            axios.get(x+'/code')
+                .then(data => cod.push(data.code) )
+                .catch((error)=> console.log(error))
+        })
+        cod = cod.join('-')
+        let task = homeworks.reverse().find(x=> url == x.who)
+        image[task.pixel.x][task.pixel.y] = {cod: cod, color: task.color }
+        urls.filter(x=> x != myUrl).forEach(x=>{
+            axios.post(x + '/savePixel', {url: url, cod: cod} )
+                    .then()
+                    .catch()
+        })
+    } 
+    axios.post(url + '/response', {response: maxKey}).then().catch()
+}
+
 
 http.listen(port, async () => {
     console.log('Server listening on port ', port);
