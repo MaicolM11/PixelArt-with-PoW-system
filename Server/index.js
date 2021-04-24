@@ -100,6 +100,7 @@ app.post('/checkTask',upload.single('task'),(req,res)=>{
         res.send("Incompleted")
     }
     fs.unlinkSync(req.file.path)
+    
     res.sendStatus(200);
 })
 

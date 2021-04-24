@@ -101,7 +101,8 @@ app.post('/task',upload.single('task'),(req,res)=>{
         })
     })
     let consensusCheckTask = getMajors(checkTask); // o tiene el valor "Task Completed" o "Incompleted" 
-    AQUI VOUY ANDRESFW
+    AQUI VOUY ANDRESFWd
+    d
 
     */
     // fs.unlinkSync(req.file.path) -- esta linea hace lo que johan dijo que hiciera en la line 104
