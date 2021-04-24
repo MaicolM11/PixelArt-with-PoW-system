@@ -1,13 +1,33 @@
 const express = require('express')
 const axios = require('axios')
+const FormData = require('form-data');
+const path = require('path');
 const urlLeader = "http://172.17.0.1:4000"
 const urls = ["http://172.17.0.1:4000","http://172.17.0.1:3001","http://172.17.0.1:3002","http://172.17.0.1:3003"];
+const multer = require('multer');
+const cors = require('cors');
+const fs = require('fs');
+
+// Multer config
+var storage =multer.diskStorage({
+    destination: (req,file,cb)=>{
+        cb(null,path.join(__dirname,'/task'))
+    },
+    filename:(req,file,cb)=>{
+        var ext=file.originalname.split('.')
+        cb(null,`${Date.now()}.${ext[ext.length-1]}`)
+    }
+})
+
+var upload=multer({storage:storage})
 
 var app = express()
+app.use(cors())
 var port = 4000
 var image = [];
 var words = ["hola", "mundo","feliz"];
 var homeworks = [];
+var http = require('http').createServer(app);
 
 for(var i=0; i<10; i++) {
     image[i] = new Array(10);
@@ -63,6 +83,30 @@ app.get('/vow', (req, res) => {
     res.send(words[indexWord]);
 })
 
+app.post('/task',upload.single('task'),(req,res)=>{
+    //req.file.path=> path donde se guada
+    //req.body.url => server de donde viene
+    var formData= new FormData()
+    formData.append('task', fs.createReadStream(req.file.path));
+    /** 
+    urls.map(url=>{
+        axios.post(`${url}/task`, 
+        formData
+        , { headers: formData.getHeaders() })
+        .then(()=>{
+            console.log('si')
+        }).catch((error)=>{
+            console.log('no')
+        })
+    })
+    */
+    //borrar el archivo ubicado en req.file.path
+    res.sendStatus(200)
+})
+
 http.listen(port, async () => {
     console.log('Server listening on port ', port);
+    if (!fs.existsSync(path.join(__dirname,'/task'))) {
+        fs.mkdirSync(path.join(__dirname,'/task'))
+    }
 });
