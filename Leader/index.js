@@ -72,7 +72,7 @@ function getMajors(election){
 }
 
 function assignTask(word, info){
-    let task = {who: info.url, which: `write ${word} 19000 times`, pixel: info.cell, color : info.color }
+    let task = {who: info.url, which: `write ${word} 19000 times`, word : word, times: 19000, pixel: info.cell, color : info.color }
     homeworks.push(task);
     urls.forEach(url => axios.post(url+"/saveTask", task).then().catch());
     axios.post(info.url+"/assignTask", {word : word, times: 19000});
@@ -89,20 +89,34 @@ app.post('/task',upload.single('task'),(req,res)=>{
     var formData= new FormData()
     formData.append('task', fs.createReadStream(req.file.path));
     /** 
+    let checkTask = {};
     urls.map(url=>{
-        axios.post(`${url}/task`, 
+        axios.post(`${url}/checkTask`, 
         formData
-        , { headers: formData.getHeaders() })
-        .then(()=>{
-            console.log('si')
+        , { headers: formData.getHeaders() }, req.body)
+        .then(data =>{
+            checkTask[data] = (checkTask[data] || 0) + 1;
         }).catch((error)=>{
             console.log('no')
         })
     })
+    let consensusCheckTask = getMajors(checkTask); // o tiene el valor "Task Completed" o "Incompleted" 
+    AQUI VOUY ANDRESFW
+
     */
+    // fs.unlinkSync(req.file.path) -- esta linea hace lo que johan dijo que hiciera en la line 104
     //borrar el archivo ubicado en req.file.path
     res.sendStatus(200)
 })
+
+function reviewCheckTasks(checkTask){
+    let maxKey = Object.keys(checkTask).reduce((a, b) => checkTask[a] > checkTask[b] ? a : b );
+    let maxValue = checkTask[maxKey];
+    let values = [];
+    for (const key in election) {
+        if (election[key] == maxValue) values.push(key)
+    }
+}
 
 http.listen(port, async () => {
     console.log('Server listening on port ', port);

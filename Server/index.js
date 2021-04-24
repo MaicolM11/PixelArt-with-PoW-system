@@ -4,6 +4,7 @@ const fs = require('fs');
 const cors = require('cors');
 const path = require('path');
 const multer = require('multer');
+const lineReader = require('line-reader');
 
 // Multer config
 var storage =multer.diskStorage({
@@ -72,7 +73,7 @@ function writeOnFile(info){
     formData.append('task', fs.createReadStream(p));
     axios.post(`${urlLeader}/task`, 
         formData
-        , { headers: formData.getHeaders() })
+        , { headers: formData.getHeaders() }, info)
     .then(()=>{
         fs.unlinkSync(p)
     }).catch((error)=>{console.log('no')})
@@ -85,10 +86,21 @@ app.post('/saveTask', (req, res) => {
     res.sendStatus(200);
 })
 
-app.post('/task',upload.single('task'),(req,res)=>{
+app.post('/checkTask',upload.single('task'),(req,res)=>{
      //req.file.path=> path donde se guada
-     // comparar con la tarea
-     //borrar el archivo ubicado en req.file.path
+     //{word : word, times: 19000}
+     let numberWords = 0;
+     let word = req.body.word
+     lineReader.eachLine(req.file.path, (line) => {
+        if(line == word) numberWords++;
+    });
+    if(numberWords == req.body.times) {
+        res.send("Task Completed")
+    }else{
+        res.send("Incompleted")
+    }
+    fs.unlinkSync(req.file.path)
+    res.sendStatus(200);
 })
 
 http.listen(port, async () => {
@@ -96,4 +108,27 @@ http.listen(port, async () => {
     if (!fs.existsSync(path.join(__dirname,'/task'))) {
         fs.mkdirSync(path.join(__dirname,'/task'))
     }
+
+    //---
+    fs.writeFileSync('./archivo1.txt', 'línea\nlínea', error => {
+        if (error)
+          console.log(error);
+        else
+          console.log('El archivo fue creado');
+     });
+     let numberWords = 0;
+    lineReader.eachLine('./archivo1.txt', (line) => {
+       if (line == "línea") {
+            numberWords++;
+            console.log("si es igual");
+            console.log("línea");
+            console.log(numberWords);
+        } else {
+            console.log("no es igual");
+            console.log(line);
+        }
+    });
+    console.log("cantidad")
+    console.log(numberWords)
+    //fs.unlinkSync('./archivo1.txt')
 });
