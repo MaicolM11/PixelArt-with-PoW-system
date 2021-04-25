@@ -94,25 +94,24 @@ app.get('/vow', (req, res) => {
 
 app.post('/task', upload.single('task'), async (req,res)=>{
     //req.file.path=> path donde se guada    req.body.url => server de donde viene
-    reviewTask(req);
     res.sendStatus(200)
-})
-
-function reviewTask(req) {
-    var formData= new FormData()
-    formData.append('url', req.body.url)
-    formData.append('task', fs.createReadStream(req.file.path));
     let checkTask = {};
-    urls.filter(x=> req.body.url != x).forEach(url => {
-        axios.post(`${url}/checkTask`, formData, { headers: formData.getHeaders() })
-        .then(data => {
-            checkTask[data.response] = (checkTask[data.response] || 0) + 1;
-            
-        }).catch((error)=>  console.log('no'))
-    })
-    console.log("CHECK",checkTask);
-    //pixelRegister(checkTask, req.body.url)
-}
+    let filter = urls.filter(x=> req.body.url != x)
+    let response = 0;
+    for (let i = 0; i < filter.length; i++) {
+        var formData = new FormData()
+        formData.append('url', String(req.body.url))
+        formData.append('task', fs.createReadStream(req.file.path));
+        axios.post(`${filter[i]}/checkTask`, formData, { headers: formData.getHeaders() })
+            .then(data => {
+                checkTask[data.response] = (checkTask[data.response] || 0) + 1
+                response++;
+            })
+            .catch((error)=>  console.log('no'))        
+    }
+    while(response != urls.length-1) continue       // sleppp
+    // pixelRegister(checkTask, req.body.url)
+})
 
 function pixelRegister(result, url){
     let maxKey = Object.keys(result).reduce((a, b) => result[a] > result[b] ? a : b ); 

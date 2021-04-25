@@ -19,7 +19,7 @@ var words = ["hola", "mundo","feliz"];
 const urlLeader = "http://172.17.0.1:4000"
 const FormData = require('form-data');
 
-var path_work = './task' + port
+var path_work = './task' + port + '.txt'
 
 // Multer config
 var storage = multer.diskStorage({
@@ -75,19 +75,23 @@ app.get('/vow', (req, res) => {
 
 app.post('/saveTask', (req, res) => {
     homeworks.push(req.body);
+    console.log(homeworks);
     res.sendStatus(200);
 })
 
 app.post('/checkTask', upload.single('task'), (req, res) => {
     //req.file.path=> path donde se guada
-    let task = homeworks.reverse().find(x=>x.who == req.body.url)
+    console.log("INFO", homeworks, req.body.url);
+   /* let task = homeworks.reverse().find( x=>x.who == req.body.url)
+    console.log(task);
     let word = task.word, times = task.times, line, numberWords = 0
     let lrs = new lineReader(req.file.path)
     while((line=lrs.readline())!= null) {
         if(line == word)  numberWords++;
     }
     fs.unlinkSync(req.file.path)
-    res.send({response:numberWords == times})
+    res.send({response:numberWords == times})*/
+    res.send({response:true})
 })
 
 // {url, cod}

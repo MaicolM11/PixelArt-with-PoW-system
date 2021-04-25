@@ -7,7 +7,7 @@ const election = {
 }
 
 let a = Date.now();
-for (let index = 0; index < 19000; index++) {
+for (let index = 0; index < 170000; index++) {
     fs.appendFileSync("./prueba.txt", "hola\n");
 }
 let b = Date.now();
