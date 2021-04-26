@@ -75,36 +75,62 @@ app.get('/vow', (req, res) => {
 
 app.post('/saveTask', (req, res) => {
     homeworks.push(req.body);
-    console.log(homeworks);
     res.sendStatus(200);
 })
 
 app.post('/checkTask', upload.single('task'), (req, res) => {
     //req.file.path=> path donde se guada
-    console.log("INFO", homeworks, req.body.url);
-   /* let task = homeworks.reverse().find( x=>x.who == req.body.url)
-    console.log(task);
+    let task = homeworks.reverse().find( x=>x.who == req.body.url)
     let word = task.word, times = task.times, line, numberWords = 0
     let lrs = new lineReader(req.file.path)
     while((line=lrs.readline())!= null) {
         if(line == word)  numberWords++;
     }
     fs.unlinkSync(req.file.path)
-    res.send({response:numberWords == times})*/
-    res.send({response:true})
+    res.send({response:numberWords == times})
 })
 
 // {url, cod}
 app.post('/savePixel', (req, res)=>{
-    let task = homeworks.reverse().find(x => req,body.url == x.who)
+    let task = homeworks.reverse().find(x => req.body.url == x.who)
     image[task.pixel.x][task.pixel.y] = {cod: req.body.cod, color: task.color }
+    console.log(image);
     res.sendStatus(200)
 })
 
 app.post('/response', (req, res)=>{
-    // req.body.response = bool
-    // enviar a la vista la respuesta
+    // send response view with ws, req.body.response = bool
+    console.log(req.body.response);
     res.sendStatus(200);
+})
+
+app.get('/certificate', (req,res)=>{
+    let result = []
+    for (let i = 0; i < image.length; i++) {
+       result.push(image[i].map(x=> x.cod).join(';'))
+    }
+    let name_file = './' + Date.now() + '.csv';
+    fs.writeFileSync(name_file, result.join('\n'))
+    res.download(name_file, (err)=>{
+        fs.unlinkSync(name_file)
+    });
+})
+
+// vista
+app.post('/validate', (req,res)=> {
+    // add myurl to form data like url
+    axios.post(urlLeader + '/validate', )
+})
+
+// lider
+app.post('/validateCertificate', upload.single('task'), (req,res)=>{
+    let values = fs.readFileSync(req.file.path, { encoding: "utf-8"});
+    let result = []
+    for (let i = 0; i < image.length; i++) {
+       result.push(image[i].map(x=> x.cod).join(';'))
+    }
+    let response = values == result.join('\n'); 
+    res.send({response: response})
 })
 
 http.listen(port, async () => {

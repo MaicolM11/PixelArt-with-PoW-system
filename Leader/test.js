@@ -1,4 +1,4 @@
-const fs = require('fs')
+/*const fs = require('fs')
 const election = {
     "word" : 1,
     "io" : 2,
@@ -12,5 +12,14 @@ for (let index = 0; index < 170000; index++) {
 }
 let b = Date.now();
 let time = b-a;
+*/
 
-console.log(time);
+let result = {false: 12, true:12}
+let maxKey = Object.keys(result).reduce((a, b) => result[a] > result[b] ? a : b );
+let cod = []
+cod.push(2)
+if(maxKey && result[false] != result[maxKey]) {
+    console.log("se registra", cod);
+} else{
+    console.log("se registra", cod);
+}
