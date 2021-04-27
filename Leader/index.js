@@ -134,12 +134,12 @@ async function pixelRegister(result, url) {
     axios.post(url + '/response', { response: accept })
 }
 
-app.post('/validate', upload.single('task'), (req, res) => {
+app.post('/validate', upload.single('file'), (req, res) => {
     let consensus = {}, response = 0
     urls.filter(x => x != req.body.url).forEach(x => {
         var formData = new FormData()
         formData.append('url', String(req.body.url))
-        formData.append('task', fs.createReadStream(req.file.path));
+        formData.append('file', fs.createReadStream(req.file.path));
         axios.post(x + '/validateCertificate', formData, { headers: formData.getHeaders() })
             .then(() => {
                 consensus[info.data.response] = (consensus[info.data.response] || 0) + 1

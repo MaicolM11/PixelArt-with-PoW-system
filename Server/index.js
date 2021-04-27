@@ -5,7 +5,7 @@ const cors = require('cors');
 const path = require('path');
 const multer = require('multer');
 const lineReader = require('line-reader-sync');
-
+const jimp = require('jimp');
 var app = express()
 app.use(cors())
 var port = process.env.PORT || 3000
@@ -13,6 +13,7 @@ const myUrl = "http://172.17.0.1:" + port
 var image = [];
 var homeworks = [];
 var http = require('http').createServer(app);
+const io = require('socket.io')(http);
 
 var words = ["hola", "mundo","feliz"];
 
@@ -20,6 +21,12 @@ const urlLeader = "http://172.17.0.1:4000"
 const FormData = require('form-data');
 
 var path_work = './task' + port + '.txt'
+
+global.socket = io.sockets
+
+io.sockets.on('connection', (socket) => {
+    socket.emit('image', image)
+})
 
 // Multer config
 var storage = multer.diskStorage({
@@ -35,6 +42,8 @@ var upload = multer({ storage: storage })
 for (var i = 0; i < 10; i++) {
     image[i] = new Array(10);
 }
+
+image[4][5]={color:'#ff1234'}
 
 app.use(express.json())
 app.use(express.static('public'))
@@ -95,19 +104,21 @@ app.post('/savePixel', (req, res)=>{
     let task = homeworks.reverse().find(x => req.body.url == x.who)
     image[task.pixel.x][task.pixel.y] = {cod: req.body.cod, color: task.color }
     console.log(image);
+    global.sockets.emit('image',image)
     res.sendStatus(200)
 })
 
 app.post('/response', (req, res)=>{
     // send response view with ws, req.body.response = bool
     console.log(req.body.response);
+    global.sockets.emit('response',req.body.response)
     res.sendStatus(200);
 })
 
 app.get('/certificate', (req,res)=>{
     let result = []
     for (let i = 0; i < image.length; i++) {
-       result.push(image[i].map(x=> x.cod).join(';'))
+        result.push(image[i].map(x=> x.cod).join(';'))
     }
     let name_file = './' + Date.now() + '.csv';
     fs.writeFileSync(name_file, result.join('\n'))
@@ -116,14 +127,45 @@ app.get('/certificate', (req,res)=>{
     });
 })
 
+app.get('/image', (req,res)=>{
+    writeImage(res)
+})
+
+function writeImage(res) {
+    var imageFile = new jimp( (image[0].length*100),(image.length*100), (err, img) =>{
+        if (err) throw err
+        for (let i = 0; i < image.length; i++) {
+            for (let j = 0; j < image[i].length; j++) {
+                for (let k = 0; k < 100; k++) {
+                    for (let l = 0; l < 100; l++) {
+                        let c=(image[i][j])?image[i][j].color.replace('#',''): 'ffffff'
+                        img.setPixelColor(jimp.cssColorToHex(c),((j*100)+l),((i*100)+k))
+                    }
+                }
+            }
+        }
+        img.write('pixel.png', (err) => {
+            if (err) {throw err}
+            else {
+                res.download(path.join(__dirname,'/pixel.png'), (err)=>{
+                    fs.unlinkSync(path.join(__dirname,'/pixel.png'))
+                })
+            }
+        })
+    })
+}
+
 // vista
-app.post('/validate', (req,res)=> {
+app.post('/validate',upload.single('file'), (req,res)=> {
     // add myurl to form data like url
-    axios.post(urlLeader + '/validate', )
+    var formdata= new FormData()
+    formdata.append('url',req.body.myUrl)
+    formdata.append('file', fs.createReadStream(req.file.path))
+    axios.post(urlLeader + '/validate',formdata, {headers:formdata.getHeaders()} )
 })
 
 // lider
-app.post('/validateCertificate', upload.single('task'), (req,res)=>{
+app.post('/validateCertificate', upload.single('file'), (req,res)=>{
     let values = fs.readFileSync(req.file.path, { encoding: "utf-8"});
     let result = []
     for (let i = 0; i < image.length; i++) {
