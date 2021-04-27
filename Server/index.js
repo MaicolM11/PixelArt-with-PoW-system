@@ -127,7 +127,7 @@ app.post('/validateCertificate', upload.single('task'), (req,res)=>{
     let values = fs.readFileSync(req.file.path, { encoding: "utf-8"});
     let result = []
     for (let i = 0; i < image.length; i++) {
-       result.push(image[i].map(x=> x.cod).join(';'))
+        result.push(image[i].map(x=> x.cod).join(';'))
     }
     let response = values == result.join('\n'); 
     res.send({response: response})

@@ -6,9 +6,11 @@ const path = require('path');
 const multer = require('multer');
 const LineReaderSync = require('line-reader-sync');
 const FormData = require('form-data');
+const jimp = require('jimp');
+const matrix = require('./matrix');
 
 var app = express()
-var port = process.env.PORT || 3000
+var port = process.env.PORT || 3005
 var http = require('http').createServer(app);
 
 const image = [];
@@ -226,6 +228,26 @@ async function getElectionsEditPixel(url_req) {
 }
 
 // =====
+//------- DESCARGAR Y DIBUJAR LA IMAGEN
+app.get('/image', (req,res)=>{
+    var imageFile = new jimp( (matrix[0].length*100),(matrix.length*100), (err, image) =>{
+        if (err) throw err
+        for (let i = 0; i < matrix.length; i++) {
+            for (let j = 0; j < matrix[i].length; j++) {
+                for (let k = 0; k < 100; k++) {
+                    for (let l = 0; l < 100; l++) {
+                        let c= matrix[i][j].replace('#','')
+                        image.setPixelColor(jimp.cssColorToHex(c),((j*100)+l),((i*100)+k))
+                    }
+                }
+            }
+        }
+        image.write('pixel.png', (err) => {
+            if (err) throw err
+            else res.download(path.join(__dirname,'/pixel.png'))
+        })
+    });
+})
 
 
 http.listen(port, async () => {
