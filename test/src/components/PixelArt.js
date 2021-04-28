@@ -5,7 +5,7 @@ import io from 'socket.io-client'
 function PixelArt(props) {
     
     const [val, setVal]=useState(false)
-    const [pixels, setPixels] = useState([[]])
+    const [pixels, setPixels] = useState([])
     const [url, setUrl] = useState('')
 
     const handleDownload=()=>{
@@ -15,10 +15,23 @@ function PixelArt(props) {
     }
 
     const handleCertifcate=()=>{
-        
+        if (url) {
+            var formdata=new FormData()
+            formdata.append('myUrl',window.location)
+            formdata.append('file', document.getElementById("file-selector").files[0]); 
+            fetch(`${window.location}validate`, {
+                method: 'post',
+                body: formdata,
+            })
+            .then(
+                setUrl('')
+            );
+        }else{
+            alert('POR FAVOR SUBA UN ARCHIVO') 
+        }
     }
 
-    var socket=io('/', {autoConnect: false})
+    var socket=io('/',{autoConnect: false})
 
     const cancelFile=()=>{
         setUrl('')
@@ -32,12 +45,13 @@ function PixelArt(props) {
     },[stop])
 
     socket.on('image',(data)=>{
-        var matrix = JSON.parse(JSON.stringify(data))
+        var matrix= JSON.parse(JSON.stringify(data))
         setPixels(matrix)
+        
     })
 
     socket.on('response',(data)=>{
-        if (data=='true') alert('Petición aceptada')
+        if (String(data)=='true') alert('Petición aceptada')
         else alert('No fue aceptado')
     })
 
@@ -47,11 +61,11 @@ function PixelArt(props) {
             <p className="p-text">Dale doble click sobre un pixel para mostrar u ocultar las opciones de ese pixel</p>
             <table id="pixel" className="pixelart">
             
-                {pixels.map((row,i)=>{
+                {pixels.length>0&&pixels.map((row,i)=>{
                     return ( <tr>
                         {row.map((column,j)=>{
                             var a={x:i,y:j}
-                            return(<Pixel position={a} color={(pixels[i][j])?pixels[i][j].color:'#ffffff'}></Pixel>)
+                            return(<Pixel position={a} color={(pixels[i][j])?column.color:'#ffffff'}></Pixel>)
                         })}
                     </tr>)
                 })}
@@ -62,8 +76,8 @@ function PixelArt(props) {
             </button><br/><hr/>
             <h1 className="title-principal">COMPROBAR  ARCHIVO</h1>
             {!url&&<p className="p-text">Sube un archivo para comprobarlo</p>}
-            {!url&&<input type="file" className="input-file" onChange={e=>{setUrl(e.target.value)}}></input>}
-            {url&&<div><p className='p-file'>¡ARHIVO CARGADO!</p><button className="button-confirm">COMPROBAR</button><button onClick={cancelFile} className="button-cancel">CANCELAR</button></div>}
+            <input type="file" id="file-selector" className="input-file" onChange={e=>{setUrl(e.target.value)}}></input>
+            {url&&<div><p className='p-file'>¡ARHIVO CARGADO!</p><button onClick={handleCertifcate} className="button-confirm">COMPROBAR</button><button onClick={cancelFile} className="button-cancel">CANCELAR</button></div>}
         </div>
     )
 }

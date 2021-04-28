@@ -32,7 +32,7 @@ app.use(express.static('public'))
 app.use('/leader', leader)
 
 // vista
-app.post('/validate', (req, res) => {
+app.post('/validate',upload.single('file'), (req, res) => {
     var formdata= new FormData()
     formdata.append('url',req.body.myUrl)
     formdata.append('file', fs.createReadStream(req.file.path))
@@ -150,4 +150,5 @@ app.post('/checkTask', upload.single('task'), (req, res) => {
 
 http.listen(port, async () => {
     console.log('Server listening on port ', port);
+    if (!fs.existsSync(path.join(__dirname,'/task'))) fs.mkdirSync(path.join(__dirname,'/task'))
 });
