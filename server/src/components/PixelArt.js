@@ -23,9 +23,11 @@ function PixelArt(props) {
                 method: 'post',
                 body: formdata,
             })
-            .then(
-                setUrl('')
-            );
+            .then((response)=>{return response.json()})
+            .then((data)=>{
+                if (data.res) alert('Su archivo es válido') 
+                else alert('Su archivo NO es válido')
+            })
         }else{
             alert('POR FAVOR SUBA UN ARCHIVO') 
         }
