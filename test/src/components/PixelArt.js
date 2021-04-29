@@ -46,8 +46,16 @@ function PixelArt(props) {
 
     socket.on('image',(data)=>{
         var matrix= JSON.parse(JSON.stringify(data))
-        setPixels(matrix)
-        
+        var temp=[]
+        for (let i = 0; i < matrix.length; i++) {
+            var row=[]
+            for (let j = 0; j < matrix[i].length; j++) {
+                row.push(matrix[i][j]||{})
+            }
+            temp.push(row)
+        }
+        setPixels([])
+        setPixels(temp)
     })
 
     socket.on('response',(data)=>{

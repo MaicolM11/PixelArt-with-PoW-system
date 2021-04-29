@@ -25,7 +25,12 @@ global.socket = io.sockets
 
 for (var i = 0; i < 10; i++) image[i] = new Array(10)
 
-io.sockets.on('connection', (socket) => socket.emit('image', image))
+io.sockets.on('connection', (socket) => {
+    socket.emit('image', image)
+    setInterval(() => {
+        socket.emit('logs', fs.readFileSync('./logs/access.log').toString())
+    }, 1000)
+})
 
 app.use(cors())
 app.use(express.json())
@@ -33,22 +38,22 @@ app.use(express.static('public'))
 app.use('/leader', leader)
 
 // vista
-app.post('/validate',upload.single('file'), (req, res) => {
+app.post('/validate', upload.single('file'), (req, res) => {
     logger.info("Solicitud para validar la imagen")
-    var formdata= new FormData()
-    formdata.append('url',req.body.myUrl)
+    var formdata = new FormData()
+    formdata.append('url', myUrl)
     formdata.append('file', fs.createReadStream(req.file.path))
-    logger.info(`Envia el archivo para validar al lider ${urlLeader}`)
-    axios.post(urlLeader + '/leader/validate', formdata, {headers:formdata.getHeaders()} )
-    .then((info)=> {
-        logger.info(`Se obtiene respuesta de la validación asi: ${info.data.valid}`)
-        res.send({res: info.data.valid})})
-    .catch((error)=> res.send({res: false}))
+    axios.post(urlLeader + '/leader/validate', formdata, { headers: formdata.getHeaders() })
+        .then((info) => {
+            logger.info(`Se obtiene respuesta de la validación asi: ${info.data.valid}`)
+            res.send({ res: info.data.valid })
+        })
+        .catch((error) => res.send({ res: false }))
 })
 
 // vista {pixel: {x:1,y:1}, color:"#ffffff"}
 app.post('/editPixel', async (req, res) => {
-    logger.info(`${myUrl} solicita pintar un pixel en coordenadas (${req.body.pixel.x},${req.body.pixel.y}) con color ${req.body.color}`)
+    logger.info(`${myUrl} solicita pintar un pixel en coordenadas (${req.body.cell.x},${req.body.cell.y}) con color ${req.body.color}`)
     req.body.url = myUrl;
     axios.post(urlLeader + "/leader/editPixel", req.body)
         .then((task) => {
@@ -56,9 +61,8 @@ app.post('/editPixel', async (req, res) => {
             logger.info(`${urlLeader} Ha asignado como tarea escribir ${task.data.word}, ${task.data.times} veces`)
             writeOnFile(task.data);
         })
-        .catch((error) =>{ 
+        .catch((error) => {
             res.sendStatus(500)
-            logger.info(`Error al editar pixel x57_index`)
         });
 })
 
@@ -73,7 +77,7 @@ function writeOnFile(info) {
     logger.info(`Envia la tarea hecha para el lider`)
     axios.post(`${urlLeader}/leader/task`, formData, { headers: formData.getHeaders() })
         .then(() => fs.unlinkSync(path_work))
-        .catch((error) => console.log('no'))
+        .catch((error) => { })
 }
 
 // download certificate
@@ -108,37 +112,36 @@ app.get('/image', (req, res) => {
                 fs.unlinkSync(path.join(__dirname, '/pixel.png'))
             })
         })
-    })  
+    })
 })
 
 app.get('/vow', (req, res) => {
-    logger.info(`llega solicitud de voto para tarea`)
     let indexWord = Math.floor(Math.random() * (words.length));
     res.send({ word: words[indexWord] });
 })
 
 app.get('/code', (req, res) => {
-    logger.info(`llega solicitud de código para imagen`)
     let number = Math.floor(Math.random() * (101));
     res.send({ code: number })
 })
 
 app.post('/saveTask', (req, res) => {
-    homeworks.push(req.body);
-    logger.info(`Se ha almacenado una tarea: ${req.body}`)
+    homeworks.unshift(req.body);
+    logger.info(`Se ha almacenado una tarea: ${JSON.stringify(req.body)}`)
     res.sendStatus(200);
 })
 
 app.post('/savePixel', (req, res) => {
-    let task = homeworks.reverse().find(x => req.body.url == x.who)
+    let task = homeworks.find(x => req.body.url == x.who)
     image[task.pixel.x][task.pixel.y] = { cod: req.body.cod, color: task.color }
-    logger.info(`Se guarda el pixel con código ${req.bodu.cod} y color ${task.color}`)
+    logger.info(`Se guarda el pixel con código ${req.body.cod}`)
+    global.socket.emit('image', image);
     res.sendStatus(200)
 })
 
 // response of edit pixel
 app.post('/response', (req, res) => {
-    logger.info(`Obtiene respuesta por parte del lider para editar un pixel`)
+    logger.info(`Respuesta del lider para editar un pixel: ${req.body.response}`)
     global.socket.emit('response', req.body.response)
     res.sendStatus(200);
 })
@@ -158,7 +161,7 @@ app.post('/validateCertificate', upload.single('file'), (req, res) => {
 // participante
 app.post('/checkTask', upload.single('task'), (req, res) => {
     logger.info(`Recibe tarea para validar`)
-    let task = homeworks.reverse().find(x => x.who == req.body.url)
+    let task = homeworks.find(x => x.who == req.body.url)
     let word = task.word, times = task.times, line, numberWords = 0
     let lrs = new LineReaderSync(req.file.path)
     while ((line = lrs.readline()) != null) {
@@ -170,5 +173,5 @@ app.post('/checkTask', upload.single('task'), (req, res) => {
 
 http.listen(port, async () => {
     console.log('Server listening on port ', port);
-    if (!fs.existsSync(path.join(__dirname,'/task'))) fs.mkdirSync(path.join(__dirname,'/task'))
+    if (!fs.existsSync(path.join(__dirname, '/task'))) fs.mkdirSync(path.join(__dirname, '/task'))
 });
