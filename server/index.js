@@ -155,6 +155,7 @@ app.post('/validateCertificate', upload.single('file'), (req, res) => {
         result.push(image[i].map(x => x.cod).join(';'))
     }
     let response = values == result.join('\n');
+    fs.unlinkSync(req.file.path)
     res.send({ response: response })
 })
 

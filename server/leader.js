@@ -1,7 +1,7 @@
 const route = require('express').Router()
 const upload = require('./multer')
 const urls = ["http://172.17.0.1:3000", "http://172.17.0.1:3001", "http://172.17.0.1:3002", "http://172.17.0.1:3003"];
-const TIMES_WRITE = 20;
+const TIMES_WRITE = 20000;
 const axios = require('axios')
 const FormData = require('form-data');
 const fs = require('fs')
@@ -83,7 +83,8 @@ route.post('/validate', upload.single('file'), (req, res) => {
                 response++;
                 if (response == urls.length - 1) {
                     logger.info(`[LEADER] Se obtiene un consenso asi: ${JSON.stringify(consensus)}`)
-                    let resp = consensus[true] > consensus[false];
+                    let resp = consensus[true] > (urls.length -1)/2;
+                    fs.unlinkSync(req.file.path) 
                     res.send({ valid: resp })
                 }
             })
